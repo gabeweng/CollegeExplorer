@@ -124,4 +124,4 @@ else:
             ), 
             use_container_width=True)
 
-st.sidebar.write(f"Made with love from the [Darrne](https://github.com/darrentweng) and [Gabe](https://github.com/gabeweng)")
+st.sidebar.write(f"Made with love from the [Darren](https://github.com/darrentweng) and [Gabe](https://github.com/gabeweng)")
