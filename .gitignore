@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 CollegeScorecardDataDictionary.csv
 reportcard.csv
+reportcard_major.csv

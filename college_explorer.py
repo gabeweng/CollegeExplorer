@@ -9,25 +9,24 @@ st.set_page_config(layout="wide")
 @st.cache_data
 def load_data():
     df = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard.csv")
-    datadict = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/CollegeScorecardDataDictionary.csv")
-    # df = pd.read_csv("reportcard.csv",index_col=0)
-    # datadict = pd.read_csv("CollegeScorecardDataDictionary.csv")
-    datadict.replace({'by_income_level':'income', '.working_not_enrolled':'','outcome_percentage':'perc'},regex=True,inplace=True)
-    code2name = dict(zip(datadict['VARIABLE NAME'], datadict['developer-friendly name']))
-    df.rename(columns = code2name, inplace = True)
-    df.rename(columns = {'location.lon':'lon', 'location.lat':'lat'}, inplace = True)
-    regionMap = {0:"U.S. Service Schools",1:"New Englend",2:"Mid East",3:"Great Lakes",4:"Plains",5:"Southeast",6:"Southwest",7:"Rocky Mountains",8:"Far West",9:"Outlying"}
-    df['region_id'] = df['region_id'].map(regionMap)
-    localeMap = {11:'Large City',12:'Midsize City',13:'Small City',21:'Large Suburb',22:'Midsize Suburb',23:'Small Suburb',
-                31:'Fringe Town',32:'Distant Town',33:'Remote Town',41:'Fringe Rural',42:'Distant Rural',43:'Remote Rural'}
-    df['locale'] = df['locale'].map(localeMap)
-    df['net_price.income.110001-plus']=df[['net_price.public.income.110001-plus','net_price.private.income.110001-plus']].max(axis=1)
-    
-    return df
+    df_majors = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard_major.csv")
+    #df = pd.read_csv("reportcard.csv",index_col=0)
+    #df_majors = pd.read_csv("reportcard_major.csv",index_col=0)
+    majors = list(df_majors['cip.title'].unique())
+    titles = list(df_majors['cip.credential.title'].unique())
+    majors.insert(0,'---')
+    return df,df_majors,titles,majors
 
-df = load_data()
+df_college,df_majors,titles,majors = load_data()
 
 numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+major = st.sidebar.selectbox('Major', majors, index=majors.index("---"))
+title = st.sidebar.selectbox('Title', titles, index=0)
+if major == '---':
+    df = df_college
+else:
+    df = df_college.merge(df_majors[(df_majors['cip.title']==major) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
+
 cols_all = list(df.columns.values)
 cols = list(df.select_dtypes(include=numerics).columns.values)
 cols_nan = list(df.select_dtypes(exclude=numerics).columns.values)
