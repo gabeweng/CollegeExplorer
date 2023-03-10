@@ -8,24 +8,43 @@ st.set_page_config(layout="wide")
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard.csv")
-    df_majors = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard_major.csv")
-    #df = pd.read_csv("reportcard.csv",index_col=0)
-    #df_majors = pd.read_csv("reportcard_major.csv",index_col=0)
+    try:
+        print("Load colleges from local")
+        df = pd.read_csv("reportcard.csv",index_col=0)
+    except FileNotFoundError:
+        print("Load colleges from github")
+        df = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard.csv",index_col=0)
+    try:
+        print("Load majors from local")
+        df_majors = pd.read_csv("reportcard_major.csv",index_col=0)
+    except FileNotFoundError:
+        print("Load majors from github")
+        df_majors = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard_major.csv",index_col=0)
+
     majors = list(df_majors['cip.title'].unique())
     titles = list(df_majors['cip.credential.title'].unique())
-    majors.insert(0,'---')
     return df,df_majors,titles,majors
 
 df_college,df_majors,titles,majors = load_data()
 
 numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
-major = st.sidebar.selectbox('Major', majors, index=majors.index("---"))
+# major = st.sidebar.selectbox('Major', majors, index=majors.index("---"))
+major = st.multiselect('Majors', majors, default=['Computer Science.','Computer and Information Sciences, General.',
+    'Finance and Financial Management Services.','Business Administration, Management and Operations.','Economics.'])
+
+# print("Selected "+str(major))
 title = st.sidebar.selectbox('Title', titles, index=0)
-if major == '---':
+if major == []:
     df = df_college
+    default_cols = ['name','size','city','state','zip','region_id','admission_rate.overall','10_yrs_after_entry.mean_earnings']
+    default_bubble_col = 'size'
+    default_earning_col = '10_yrs_after_entry.mean_earnings'
 else:
-    df = df_college.merge(df_majors[(df_majors['cip.title']==major) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
+    df = df_college.merge(df_majors[(df_majors['cip.title'].isin(major)) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
+    default_cols = ['name','admission_rate.overall','cip.title','cip.earnings.highest.3_yr.nonpell_median_earnings',
+                    'cip.counts.ipeds_awards1','cip.earnings.highest.3_yr.not_enrolled.overall_count']
+    default_bubble_col = 'cip.counts.ipeds_awards1'
+    default_earning_col = 'cip.earnings.highest.3_yr.nonpell_median_earnings'
 
 cols_all = list(df.columns.values)
 cols = list(df.select_dtypes(include=numerics).columns.values)
@@ -35,7 +54,7 @@ option = st.sidebar.radio('College Search', ('Table + Scatter', 'Scatter Only','
 
 st.title('College Explorer')
 if option == 'Pair-Plot':
-    cat = st.sidebar.selectbox('Category', ['region_id','locale'], index=0)
+    cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=0)
     columns = st.multiselect('Columns', cols, default=['admission_rate.overall','net_price.income.110001-plus','attendance.academic_year'])
 
     all_col = columns.copy()# append a category column. this is not in the columns list, so we need to add it
@@ -78,11 +97,11 @@ else:
     
     if 'Scatter' in option:
         xcol = st.sidebar.selectbox('X-Axis', cols, index=cols.index("admission_rate.overall"))
-        ycol = st.sidebar.selectbox('Y-Axis', cols, index=cols.index("10_yrs_after_entry.mean_earnings"))
-        cat = st.sidebar.selectbox('Category', ['region_id','locale'], index=0)
-        bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index("size"))
+        ycol = st.sidebar.selectbox('Y-Axis', cols, index=cols.index(default_earning_col))
+        cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=0)
+        bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index(default_bubble_col))
     else:
-        bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index("size"))
+        bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index(default_bubble_col))
         defaultval='1'
         if 'Pct' in bubble_col:
             defaultval='100000'
@@ -94,8 +113,7 @@ else:
             bubble_factor = 1
 
     if 'Table' in option:
-        columns = st.multiselect('Columns', cols_all,default=['name','size',
-        'city','state','zip','region_id','admission_rate.overall','10_yrs_after_entry.mean_earnings'])
+        columns = st.multiselect('Columns', cols_all,default=default_cols)
         
         tbl = df[columns]
         st.header("Selected Colleges (#:"+str(tbl.shape[0])+")")
