@@ -39,12 +39,15 @@ if major == []:
     default_cols = ['name','size','city','state','zip','region_id','admission_rate.overall','10_yrs_after_entry.mean_earnings']
     default_bubble_col = 'size'
     default_earning_col = '10_yrs_after_entry.mean_earnings'
+    cat_idx = 0
 else:
     df = df_college.merge(df_majors[(df_majors['cip.title'].isin(major)) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
     default_cols = ['name','admission_rate.overall','cip.title','cip.earnings.highest.3_yr.nonpell_median_earnings',
-                    'cip.counts.ipeds_awards1','cip.earnings.highest.3_yr.not_enrolled.overall_count']
+                   'cip.counts.ipeds_awards1','cip.earnings.highest.3_yr.not_enrolled.overall_count']
     default_bubble_col = 'cip.counts.ipeds_awards1'
+    # df.rename(columns = {'cip.counts.ipeds_awards1':'major_population'}, inplace = True)
     default_earning_col = 'cip.earnings.highest.3_yr.nonpell_median_earnings'
+    cat_idx = 2
 
 cols_all = list(df.columns.values)
 cols = list(df.select_dtypes(include=numerics).columns.values)
@@ -54,7 +57,7 @@ option = st.sidebar.radio('College Search', ('Table + Scatter', 'Scatter Only','
 
 st.title('College Explorer')
 if option == 'Pair-Plot':
-    cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=0)
+    cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=cat_idx)
     columns = st.multiselect('Columns', cols, default=['admission_rate.overall','net_price.income.110001-plus','attendance.academic_year'])
 
     all_col = columns.copy()# append a category column. this is not in the columns list, so we need to add it
@@ -98,7 +101,7 @@ else:
     if 'Scatter' in option:
         xcol = st.sidebar.selectbox('X-Axis', cols, index=cols.index("admission_rate.overall"))
         ycol = st.sidebar.selectbox('Y-Axis', cols, index=cols.index(default_earning_col))
-        cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=0)
+        cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=cat_idx)
         bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index(default_bubble_col))
     else:
         bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index(default_bubble_col))
@@ -122,7 +125,7 @@ else:
     if 'Scatter' in option:
         plot = df[["name",xcol,ycol,bubble_col,cat]].dropna()
         ## https://plotly.com/python/linear-fits/
-        fig = px.scatter(plot, x=xcol, y=ycol, hover_data=['name'],size=bubble_col,color=cat,height=600, trendline="ols") # "lowess" for nonlinear
+        fig = px.scatter(plot, x=xcol, y=ycol, hover_data=['name'],size=bubble_col,color=cat,height=600, trendline="ols") 
         st.plotly_chart(fig, use_container_width=True)
     else:
         mapdf = df[['name','lon','lat',bubble_col]].dropna(thresh=4)
@@ -132,13 +135,14 @@ else:
             pdk.Deck(
                 map_style='mapbox://styles/mapbox/light-v9',
                 layers=[
-                    pdk.Layer("ScatterplotLayer", data=mapdf, get_position='[lon, lat]',
-                    get_fill_color="[200, 30, 0, 160]",  get_radius=bubble_col+"*"+str(bubble_factor), 
+                    # rename the target column to 'size' for the scatterplot layer 
+                    pdk.Layer("ScatterplotLayer", data=mapdf.rename(columns = {bubble_col:'size'}), get_position='[lon, lat]',
+                    get_fill_color="[200, 30, 0, 160]",  get_radius='size'+"*"+str(bubble_factor), 
                     pickable=True, opacity=0.8, stroked=False, filled=True, wireframe=True,
                     )],
                 initial_view_state=pdk.ViewState(longitude=-95.324441, latitude=39.54636, zoom=4, min_zoom=2, max_zoom=15, height=800),
-                tooltip={"html": "<b>{name}</b>: {"+bubble_col+"}"}
+                tooltip={"html": "<b>{name}</b>: {size}"}
             ), 
             use_container_width=True)
 
-st.sidebar.write(f"Made with love from the [Darren](https://github.com/darrentweng) and [Gabe](https://github.com/gabeweng)")
+st.sidebar.write(f"CE v1.0. Made with love from the [Darren](https://github.com/darrentweng) and [Gabe](https://github.com/gabeweng)")
