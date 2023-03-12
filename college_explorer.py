@@ -5,6 +5,7 @@ import seaborn as sns
 import pydeck as pdk
 
 st.set_page_config(layout="wide")
+ver = 'v1.0'
 
 @st.cache_data
 def load_data():
@@ -28,12 +29,12 @@ def load_data():
 df_college,df_majors,titles,majors = load_data()
 
 numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
-# major = st.sidebar.selectbox('Major', majors, index=majors.index("---"))
+st.title('College Explorer {ver}')
 major = st.multiselect('Majors', majors, default=['Computer Science.','Computer and Information Sciences, General.',
     'Finance and Financial Management Services.','Business Administration, Management and Operations.','Economics.'])
 
-# print("Selected "+str(major))
-title = st.sidebar.selectbox('Title', titles, index=0)
+st.sidebar.write(f"{ver} by [Darren](https://github.com/darrentweng) and [Gabe](https://github.com/gabeweng)")
+title = st.sidebar.selectbox('Degree', titles, index=0)
 if major == []:
     df = df_college
     default_cols = ['name','size','city','state','zip','region_id','admission_rate.overall','10_yrs_after_entry.mean_earnings']
@@ -42,11 +43,11 @@ if major == []:
     cat_idx = 0
 else:
     df = df_college.merge(df_majors[(df_majors['cip.title'].isin(major)) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
-    default_cols = ['name','admission_rate.overall','cip.title','cip.earnings.highest.3_yr.nonpell_median_earnings',
-                   'cip.counts.ipeds_awards1','cip.earnings.highest.3_yr.not_enrolled.overall_count']
+    default_cols = ['name','admission_rate.overall','cip.title','cip.earnings.highest.3_yr.overall_median_earnings',
+                   'cip.counts.ipeds_awards1']
     default_bubble_col = 'cip.counts.ipeds_awards1'
     # df.rename(columns = {'cip.counts.ipeds_awards1':'major_population'}, inplace = True)
-    default_earning_col = 'cip.earnings.highest.3_yr.nonpell_median_earnings'
+    default_earning_col = 'cip.earnings.highest.3_yr.overall_median_earnings'
     cat_idx = 2
 
 cols_all = list(df.columns.values)
@@ -55,7 +56,6 @@ cols_nan = list(df.select_dtypes(exclude=numerics).columns.values)
 
 option = st.sidebar.radio('College Search', ('Table + Scatter', 'Scatter Only','Table + Map', 'Map Only','Pair-Plot'))
 
-st.title('College Explorer')
 if option == 'Pair-Plot':
     cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=cat_idx)
     columns = st.multiselect('Columns', cols, default=['admission_rate.overall','net_price.income.110001-plus','attendance.academic_year'])
@@ -144,5 +144,3 @@ else:
                 tooltip={"html": "<b>{name}</b>: {size}"}
             ), 
             use_container_width=True)
-
-st.sidebar.write(f"CE v1.0. Made with love from the [Darren](https://github.com/darrentweng) and [Gabe](https://github.com/gabeweng)")
