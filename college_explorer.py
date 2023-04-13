@@ -29,7 +29,7 @@ def load_data():
 df_college,df_majors,titles,majors = load_data()
 
 numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
-st.title('College Explorer {ver}')
+st.title("College Explorer {ver}")
 major = st.multiselect('Majors', majors, default=['Computer Science.','Computer and Information Sciences, General.',
     'Finance and Financial Management Services.','Business Administration, Management and Operations.','Economics.'])
 
