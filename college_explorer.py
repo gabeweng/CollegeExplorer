@@ -5,7 +5,7 @@ import seaborn as sns
 import pydeck as pdk
 
 st.set_page_config(layout="wide")
-ver = 'v1.0'
+ver = 'v1.1'
 
 @st.cache_data
 def load_data():
