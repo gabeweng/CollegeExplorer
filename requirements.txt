@@ -1,9 +1,6 @@
-matplotlib
-pandas
 streamlit
 plotly
 seaborn
-statsmodels
 pydeck
 # base64
 # re
