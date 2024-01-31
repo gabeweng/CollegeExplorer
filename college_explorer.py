@@ -6,6 +6,26 @@ import pydeck as pdk
 
 st.set_page_config(layout="wide")
 ver = 'v1.2'
+def csv_to_dict(file_path):
+    result_dict = {"cip.title":"Major","cip.earnings.highest.3_yr.overall_median_earnings":"Median Earnings",
+                   "cip.counts.ipeds_awards1":"Major Population","admission_rate.overall":"Admit Rate",
+                   "net_price.income.110001-plus":"NetPrice", "10_yrs_after_entry.mean_earnings":"10Yr Earning"}
+    try:
+        df = pd.read_csv(file_path)
+        result_dict = dict(zip(df["code"], df["display"]))
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+    
+    return result_dict
+    
+def rename_and_keep_columns(dataframe, column_mapping):
+
+    dataframe.rename(columns=column_mapping, inplace=True)
+    
+    #columns_to_keep = list(column_mapping.values())
+    #dataframe = dataframe[columns_to_keep]
+    
+    return dataframe
 
 @st.cache_data
 def load_data():
@@ -22,11 +42,13 @@ def load_data():
         print("Load majors from github")
         df_majors = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard_major.csv",index_col=0)
 
+    data_dict = csv_to_dict('show_col.csv')
     majors = list(df_majors['cip.title'].unique())
     titles = list(df_majors['cip.credential.title'].unique())
-    return df,df_majors,titles,majors
+    
+    return df,df_majors,titles,majors,data_dict
 
-df_college,df_majors,titles,majors = load_data()
+df_college,df_majors,titles,majors,data_dict = load_data()
 
 numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
 st.title(f"College Explorer {ver}")
@@ -37,18 +59,18 @@ st.sidebar.write(f"{ver} by [Darren](https://github.com/darrentweng) and [Gabe](
 title = st.sidebar.selectbox('Degree', titles, index=0)
 if major == []:
     df = df_college
-    default_cols = ['name','size','city','state','zip','region_id','admission_rate.overall','10_yrs_after_entry.mean_earnings']
+    default_cols = ['name','size','city','state','zip','region_id','Admit Rate','10Yr Earning']
     default_bubble_col = 'size'
-    default_earning_col = '10_yrs_after_entry.mean_earnings'
+    default_earning_col = '10Yr Earning'
     cat_idx = 0
 else:
     df = df_college.merge(df_majors[(df_majors['cip.title'].isin(major)) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
-    default_cols = ['name','admission_rate.overall','cip.title','cip.earnings.highest.3_yr.overall_median_earnings',
-                   'cip.counts.ipeds_awards1']
-    default_bubble_col = 'cip.counts.ipeds_awards1'
-    # df.rename(columns = {'cip.counts.ipeds_awards1':'major_population'}, inplace = True)
-    default_earning_col = 'cip.earnings.highest.3_yr.overall_median_earnings'
+    default_cols = ['name','Admit Rate','Major','Median Earning','Major Population']
+    default_bubble_col = 'Major Population'
+    default_earning_col = 'Median Earning'
     cat_idx = 2
+
+rename_and_keep_columns(df, data_dict)
 
 cols_all = list(df.columns.values)
 cols = list(df.select_dtypes(include=numerics).columns.values)
@@ -57,8 +79,8 @@ cols_nan = list(df.select_dtypes(exclude=numerics).columns.values)
 option = st.sidebar.radio('College Search', ('Table + Scatter', 'Scatter Only','Table + Map', 'Map Only','Pair-Plot'))
 
 if option == 'Pair-Plot':
-    cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=cat_idx)
-    columns = st.multiselect('Columns', cols, default=['admission_rate.overall','net_price.income.110001-plus','attendance.academic_year'])
+    cat = st.sidebar.selectbox('Category', ['region_id','locale','Major'], index=cat_idx)
+    columns = st.multiselect('Columns', cols, default=['AdmitRate','NetPrice','attendance.academic_year'])
 
     all_col = columns.copy()# append a category column. this is not in the columns list, so we need to add it
     all_col.append(cat)     # to a copy of list so multiselect won't complain about the item not in list
@@ -67,7 +89,7 @@ if option == 'Pair-Plot':
 
 else:
     # Filters: 1 & 2 are ranges, 3 is a partial string search.
-    fil1 = st.sidebar.selectbox('Filter 1', cols, index=cols.index("admission_rate.overall"))
+    fil1 = st.sidebar.selectbox('Filter 1', cols, index=cols.index("Admit Rate"))
     txt1 = st.sidebar.text_input('Range 1','0.0-1.0')
 
     fil2 = st.sidebar.selectbox('Filter 2', cols, index=cols.index("size"))
@@ -99,9 +121,9 @@ else:
     df = df[cond]
     
     if 'Scatter' in option:
-        xcol = st.sidebar.selectbox('X-Axis', cols, index=cols.index("admission_rate.overall"))
+        xcol = st.sidebar.selectbox('X-Axis', cols, index=cols.index("Admit Rate"))
         ycol = st.sidebar.selectbox('Y-Axis', cols, index=cols.index(default_earning_col))
-        cat = st.sidebar.selectbox('Category', ['region_id','locale','cip.title'], index=cat_idx)
+        cat = st.sidebar.selectbox('Category', ['region_id','locale','Major'], index=cat_idx)
         bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index(default_bubble_col))
     else:
         bubble_col = st.sidebar.selectbox('Bubble Size', cols, index=cols.index(default_bubble_col))
