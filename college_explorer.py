@@ -5,11 +5,11 @@ import seaborn as sns
 import pydeck as pdk
 
 st.set_page_config(layout="wide")
-ver = 'v1.2'
+ver = 'v1.3'
 def csv_to_dict(file_path):
-    result_dict = {"cip.title":"Major","cip.earnings.highest.3_yr.overall_median_earnings":"MedianEarning",
+    result_dict = {"cip.title":"Major","cip.earnings.highest.3_yr.overall_median_earnings":"MedianEarning 3Yr",
                    "cip.counts.ipeds_awards1":"MajorPopulation","admission_rate.overall":"AdmitRate",
-                   "net_price.income.110001-plus":"NetPrice", "10_yrs_after_entry.mean_earnings":"10YrEarning"}
+                   "net_price.income.110001-plus":"NetPrice", "10_yrs_after_entry.mean_earnings":"6Yr Earning (School)"}
     try:
         df = pd.read_csv(file_path)
         result_dict = dict(zip(df["code"], df["display"]))
@@ -45,13 +45,21 @@ def load_data():
         print("Load majors from github")
         df_majors = pd.read_csv("https://raw.githubusercontent.com/LastMileNow/opendata/main/reportcard_major.csv",index_col=0)
 
-    data_dict = csv_to_dict('https://raw.githubusercontent.com/LastMileNow/opendata/main/show_col.csv')
+    try:
+        print("Load Col Dict from local")
+        data_dict = csv_to_dict("show_col.csv")
+    except FileNotFoundError:
+        print("Load Col Dict from github")
+        data_dict = csv_to_dict('https://raw.githubusercontent.com/LastMileNow/opendata/main/show_col.csv')
+    
     majors = list(df_majors['cip.title'].unique())
+    majors.insert(0, 'All')
     titles = list(df_majors['cip.credential.title'].unique())
     
     return df,df_majors,titles,majors,data_dict
 
 df_college,df_majors,titles,majors,data_dict = load_data()
+
 
 numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
 st.title(f"College Explorer {ver}")
@@ -64,15 +72,18 @@ title = st.sidebar.selectbox('Degree', titles, index=0)
 
 if major == []:
     df = df_college
-    default_cols = ['name','size','city','state','zip','region_id','AdmitRate','10YrEarning']
+    default_cols = ['name','size','city','state','zip','region_id','AdmitRate','6Yr Earning (School)']
     default_bubble_col = 'size'
-    default_earning_col = '10YrEarning'
+    default_earning_col = '6Yr Earning (School)'
     cat_idx = 0
 else:
-    df = df_college.merge(df_majors[(df_majors['cip.title'].isin(major)) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
-    default_cols = ['name','AdmitRate','Major','MedianEarning','MajorPopulation']
+    if 'All' in major:
+        df = df_college.merge(df_majors[df_majors['cip.credential.title']==title], left_on='id', right_on='cip.unit_id')
+    else:
+        df = df_college.merge(df_majors[(df_majors['cip.title'].isin(major)) & (df_majors['cip.credential.title']==title)], left_on='id', right_on='cip.unit_id')
+    default_cols = ['name','AdmitRate','Major','MedianEarning 3Yr','MajorPopulation']
     default_bubble_col = 'MajorPopulation'
-    default_earning_col = 'MedianEarning'
+    default_earning_col = 'MedianEarning 3Yr'
     cat_idx = 2
 
 rename_and_keep_columns(df, data_dict,all_columns)
@@ -96,7 +107,7 @@ else:
     # Filters: 1 & 2 are ranges, 3 is a partial string search.
 
     fil1 = st.sidebar.selectbox('Filter 1', cols, index=cols.index("AdmitRate"))
-    txt1 = st.sidebar.text_input('Range 1','0.0-1.0')
+    txt1 = st.sidebar.text_input('Range 1','0.0-0.3')
 
     fil2 = st.sidebar.selectbox('Filter 2', cols, index=cols.index("size"))
     txt2 = st.sidebar.text_input('Range 2','1000-200000')
