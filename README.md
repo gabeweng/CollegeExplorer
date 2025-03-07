@@ -1,5 +1,5 @@
 # CollegeExplorer
-College Explorer that aims to improve decision making for prospective studetns.
+College Explorer that aims to improve decision making for prospective students.
 
 Curated attributes to make it more user-friendly.
 
